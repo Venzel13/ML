@@ -1,3 +1,6 @@
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import cpu_count
+
 import holidays
 import numpy as np
 import pandas as pd
@@ -95,6 +98,27 @@ def find_best_params(train, valid, params):
     return best_params
 
 
+# def find_best_params(train, valid, params):
+#     grid = ParameterGrid(params)
+
+#     with ProcessPoolExecutor(max_workers=cpu_count()) as executor:
+#         metrics = executor.map(
+#             iterate_param,
+#             [param for param in grid],
+#         )
+#     metrics = list(metrics)
+    
+#     return metrics
+
+# def iterate_param(param):
+#     model = Prophet(**param)
+#     model.fit(train)
+#     pred = model.predict(valid)["yhat"]
+#     metric = smape(valid["y"].values, pred.values)
+
+#     return metric
+
+
 def learn(train, valid, test, best_params):
     """
     Learn algorithm (for a particular country/state/county) on the `train` and
@@ -148,18 +172,27 @@ def predict_ts(ts, cutoffs, params):
         
     Return:
     ------
-    test: pandas Series or DataFrame
-        true value of the test period for a particular country/state/county.
-    pred: pandas Series or DataFrame
-        prophet prediction of the test period for a particular country/state/county.
+    result: pandas Series or DataFrame
+        true and predicted values on the test period for a particular
+        country/state/county.
     """
     ts = rename_cols(ts)
     train, valid, test = split_ts(ts, cutoffs)
     best_params = find_best_params(train, valid, params)
     pred = learn(train, valid, test, best_params)
+    result = test.merge(pred)
+    result = rename_cols(result, inverse=True)
 
-    # TODO: Merge test and pred then rename
-    # TODO: Think about returning only pred values
-    test, pred = map(rename_cols, [test, pred], 2 * [True])
+    return result
 
-    return test, pred
+
+# def parallelize(df, cutoffs, params):
+#     grouped = ["country_region", "province_state", "county", "population", "weight"]
+
+#     with ProcessPoolExecutor(max_workers=cpu.count()) as executor:
+#         pred = executor.map(
+#             predict_ts,
+#             [tr for _, tr in df.groupby(grouped)],
+#             [cutoffs] * len()
+
+#         )
