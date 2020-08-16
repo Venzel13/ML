@@ -1,0 +1,29 @@
+h1 {
+    color: blueviolet;
+}
+
+h2 {
+    font-size: 25px;
+}
+
+#button {
+    margin-top:20px;
+    margin-bottom: 20px;
+}
+
+#graph {
+    height: 75%;
+}
+
+#metric {
+    font-size: 25px;
+}
+
+.dropdown {
+    width: 300px;
+    margin-right: 20px;
+}
+
+.selector {
+    display: inline-block;
+}

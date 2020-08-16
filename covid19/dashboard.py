@@ -13,15 +13,14 @@ from preproc import preprocess_data
 df = preprocess_data("train.csv")
 
 style = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
-size = 100
 app = dash.Dash(__name__, external_stylesheets=style)
 
 
 def subset_data(data, country, state, county):
     ts = (
         data.query("country_region == @country")
-            .query("province_state == @state")
-            .query("county == @county")
+        .query("province_state == @state")
+        .query("county == @county")
     )
     return ts
 
@@ -35,18 +34,45 @@ def create_options(data, granularity):
 
 app.layout = html.Div(
     [
-        html.H1("Wine dataset", style={"color": "red", "textAlign": "center"}),
-        html.Div(id="aaa", children="My attempt to make a custom graph"),
-        dcc.Graph(id="graph"),
-        dcc.Dropdown(
-            id="dropdown_country",
-            options=create_options(df, "country_region"),
-            placeholder="country",
-            value="US",
+        html.H1("COVID-19"),
+        html.H2(children="Covid forecaster for the different country/states"),
+        html.Div("Choose the country and region of interest"),
+        html.Div(
+            [
+                dcc.Dropdown(
+                    id="dropdown_country",
+                    className="dropdown",
+                    options=create_options(df, "country_region"),
+                    placeholder="country",
+                    value="US",
+                ),
+            ],
+            className="selector",
         ),
-        dcc.Dropdown(id="dropdown_state", placeholder="state",),
-        dcc.Dropdown(id="dropdown_county", placeholder="county",),
-        html.Button(id="button", n_clicks=0, children="press"),
+        html.Div(
+            [
+                dcc.Dropdown(
+                    id="dropdown_state", placeholder="state", className="dropdown"
+                )
+            ],
+            className="selector",
+        ),
+        html.Div(
+            [
+                dcc.Dropdown(
+                    id="dropdown_county", placeholder="county", className="dropdown"
+                )
+            ],
+            className="selector",
+        ),
+        html.Div(html.Button(id="button", n_clicks=0, children="Predict")),
+        html.Div(
+            [
+                html.Div("The value of sMAPE:  ", className='selector'),
+                html.Div(id="metric", className='selector')
+            ],
+        ),
+        dcc.Graph(id="graph"),
     ]
 )
 
@@ -72,7 +98,7 @@ def update_county(state):
 
 
 @app.callback(
-    Output("graph", "figure"),
+    [Output("metric", "children"), Output("graph", "figure")],
     [Input("button", "n_clicks")],
     [
         State("dropdown_country", "value"),
@@ -80,7 +106,7 @@ def update_county(state):
         State("dropdown_county", "value"),
     ],
 )
-def hey(n_clicks, country, state, county):
+def plot_graph_metric(n_clicks, country, state, county):
     ts = subset_data(df, country, state, county)
     result = predict_ts(ts, ["2020-05-01", "2020-05-22"], PARAMS)
 
@@ -96,7 +122,10 @@ def hey(n_clicks, country, state, county):
         )
     )
 
-    return line_chart
+    metric = result.query("date >= '2020-05-22'")
+    metric = smape(metric["infected"].values, metric["pred_infected"].values)
+
+    return round(metric, 2), line_chart
 
 
 if __name__ == "__main__":

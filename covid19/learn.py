@@ -180,19 +180,9 @@ def predict_ts(ts, cutoffs, params):
     train, valid, test = split_ts(ts, cutoffs)
     best_params = find_best_params(train, valid, params)
     pred = learn(train, valid, test, best_params)
-    result = test.merge(pred)
+
+    result = pd.concat([train, valid, test])
+    result = result.merge(pred, how='outer')
     result = rename_cols(result, inverse=True)
 
     return result
-
-
-# def parallelize(df, cutoffs, params):
-#     grouped = ["country_region", "province_state", "county", "population", "weight"]
-
-#     with ProcessPoolExecutor(max_workers=cpu.count()) as executor:
-#         pred = executor.map(
-#             predict_ts,
-#             [tr for _, tr in df.groupby(grouped)],
-#             [cutoffs] * len()
-
-#         )
