@@ -63,11 +63,28 @@ def split_ts(ts, cutoffs):
 
     return train, valid, test
 
-#TODO: add n_jobs for param search
+
+# def find_best_params(train, valid, params):
+#     grid = ParameterGrid(params)
+#     metrics = np.array([])
+
+#     for param in grid:
+#         model = Prophet(**param)
+#         model.fit(train)
+#         pred = model.predict(valid)["yhat"]
+#         metric = smape(valid["y"].values, pred.values)
+#         metrics = np.append(metrics, metric)
+
+#     best_params = grid[np.argmin(metrics)]
+
+#     return best_params
+
+
 def find_best_params(train, valid, params):
     """
     Find the best hyperparameters values among all possible combinations of
-    `params`, founded on the validation set.
+    `params`, founded on the validation set. THe proccess is parallelized onto
+    all available CPU.
     
     Parameters:
     ----------
@@ -84,39 +101,46 @@ def find_best_params(train, valid, params):
         Dict of best hyperparameters
     """
     grid = ParameterGrid(params)
-    metrics = np.array([])
 
-    for param in grid:
-        model = Prophet(**param)
-        model.fit(train)
-        pred = model.predict(valid)["yhat"]
-        metric = smape(valid["y"].values, pred.values)
-        metrics = np.append(metrics, metric)
+    with ProcessPoolExecutor(max_workers=cpu_count()) as executor:
+        metrics = executor.map(
+            iterate_param,
+            [train] * len(grid),
+            [valid] * len(grid),
+            [param for param in grid],
+        )
 
+    metrics = list(metrics)
+    metrics = np.array(metrics)
     best_params = grid[np.argmin(metrics)]
-    
+
     return best_params
 
 
-# def find_best_params(train, valid, params):
-#     grid = ParameterGrid(params)
+def iterate_param(train, valid, param):
+    """
+    Compute sMAPE value for a particular set of parameters `param`.
 
-#     with ProcessPoolExecutor(max_workers=cpu_count()) as executor:
-#         metrics = executor.map(
-#             iterate_param,
-#             [param for param in grid],
-#         )
-#     metrics = list(metrics)
+    Parameters:
+    ----------
+    train/valid: pandas Series or DataFrame
+        train and validation sets for a particular country/state/county.
+    param: dict
+        Dictionary of the parameters of interest, where each key represents
+        parameter name for Prophet forecaster and each dict value represents
+        a particular possible parameter from the parameter list.
     
-#     return metrics
+    Return:
+    ------
+    metric: float,
+        The value of sMAPE for a particular set of parameters.
+    """
+    model = Prophet(**param)
+    model.fit(train)
+    pred = model.predict(valid)["yhat"]
+    metric = smape(valid["y"].values, pred.values)
 
-# def iterate_param(param):
-#     model = Prophet(**param)
-#     model.fit(train)
-#     pred = model.predict(valid)["yhat"]
-#     metric = smape(valid["y"].values, pred.values)
-
-#     return metric
+    return metric
 
 
 def learn(train, valid, test, best_params):
@@ -182,7 +206,7 @@ def predict_ts(ts, cutoffs, params):
     pred = learn(train, valid, test, best_params)
 
     result = pd.concat([train, valid, test])
-    result = result.merge(pred, how='outer')
+    result = result.merge(pred, how="outer")
     result = rename_cols(result, inverse=True)
 
     return result

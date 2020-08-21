@@ -1,10 +1,13 @@
-FROM python:3.7.3-slim as covid19
-WORKDIR COVID-19/
-COPY requirements.txt .   # or "/" instead of "." ?
+
+FROM python:3.7.3
+#-slim as covid19
+WORKDIR /COVID
+# or "/" instead of "." ?
+COPY requirements.txt .
 RUN pip install -r requirements.txt
-COPY . . # either "/" or "." or "./" ?
+# either "/" or "." or "./" ?
+COPY . .
 # EXPOSE # указать порт в Dash и тут , чтобы запускалось автоматически
 EXPOSE 8050:8050
-VOLUME [ "." ]
-ENTRYPOINT [ "python" ]
-CMD [ "dashboard.py" ]
+# VOLUME [ "." ]
+# ENTRYPOINT [ "python", "dashboard.py" ]
